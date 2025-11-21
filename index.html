@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EMAIL GENERATOR</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom Dark Blue Theme for the body */
+        body {
+            background-color: #0A1931; /* A deep, dark blue */
+            font-family: 'Inter', sans-serif;
+            transition: background-color 0.3s ease;
+        }
+        /* Custom scrollbar for the output box */
+        #output-box::-webkit-scrollbar {
+            width: 8px;
+        }
+        #output-box::-webkit-scrollbar-thumb {
+            background-color: #4C5E7A;
+            border-radius: 4px;
+        }
+        #output-box::-webkit-scrollbar-track {
+            background: #1A2E4B;
+        }
+        .message-box {
+            transition: opacity 0.3s ease-in-out;
+            pointer-events: none;
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'primary-blue': '#1F4788',
+                        'secondary-blue': '#4C5E7A',
+                        'dark-bg': '#0A1931',
+                        'card-bg': '#1A2E4B',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="text-white min-h-screen flex items-center justify-center p-4">
+
+    <div class="w-full max-w-lg mx-auto bg-card-bg p-6 sm:p-8 rounded-xl shadow-2xl border border-blue-900/50">
+        
+        <!-- Header -->
+        <h1 class="text-3xl sm:text-4xl font-extrabold text-center mb-8 text-yellow-300 tracking-wider">
+            EMAIL GENERATOR
+        </h1>
+
+        <!-- Input Section -->
+        <div class="mb-6">
+            <label for="input-email" class="block text-sm font-medium text-gray-300 mb-2">
+                Enter Email Address (Ex: sojib@gmail.com)
+            </label>
+            <input 
+                type="email" 
+                id="input-email" 
+                placeholder="Write your email here..." 
+                class="w-full p-3 rounded-lg bg-gray-700 border border-gray-600 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-blue"
+            >
+        </div>
+
+        <!-- GENERATE Button -->
+        <button 
+            onclick="generateEmails()" 
+            class="w-full bg-primary-blue hover:bg-blue-700 text-white font-semibold py-3 rounded-lg shadow-lg transform transition duration-300 ease-in-out hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50 mb-6"
+        >
+            GENERATE
+        </button>
+
+        <!-- Output Box -->
+        <div class="mb-4">
+            <label for="output-box" class="block text-sm font-medium text-gray-300 mb-2">
+                Generated Email List
+            </label>
+            <textarea 
+                id="output-box" 
+                readonly 
+                rows="10" 
+                placeholder="Generated emails will appear here..." 
+                class="w-full p-3 rounded-lg bg-gray-800 border border-gray-700 text-yellow-200 resize-none focus:outline-none focus:ring-2 focus:ring-secondary-blue overflow-y-auto"
+            ></textarea>
+        </div>
+
+        <!-- Copy Button -->
+        <button 
+            onclick="copyEmails()" 
+            id="copy-button"
+            class="w-full bg-secondary-blue hover:bg-blue-600 text-white font-semibold py-3 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-4 focus:ring-blue-400 focus:ring-opacity-50"
+            disabled
+        >
+            COPY
+        </button>
+
+        <!-- Message Box for Feedback -->
+        <div id="message-container" class="fixed inset-x-0 bottom-4 flex justify-center z-50">
+            <div id="status-message" class="message-box bg-green-500 text-white px-6 py-3 rounded-lg shadow-xl text-sm font-medium opacity-0">
+                Emails copied successfully!
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global Constants
+        const INPUT_FIELD = document.getElementById('input-email');
+        const OUTPUT_FIELD = document.getElementById('output-box');
+        const COPY_BUTTON = document.getElementById('copy-button');
+        const MESSAGE_BOX = document.getElementById('status-message');
+        const MAX_OUTPUT = 100; // Maximum number of combinations to generate
+
+        /**
+         * Shows a temporary status message to the user.
+         */
+        function showMessage(message, bgColor) {
+            MESSAGE_BOX.textContent = message;
+            // Reset existing color classes
+            MESSAGE_BOX.classList.remove('bg-green-500', 'bg-red-500', 'bg-yellow-500'); 
+            MESSAGE_BOX.classList.add(bgColor);
+            MESSAGE_BOX.classList.remove('opacity-0');
+            MESSAGE_BOX.classList.add('opacity-100');
+
+            setTimeout(() => {
+                MESSAGE_BOX.classList.remove('opacity-100');
+                MESSAGE_BOX.classList.add('opacity-0');
+            }, 3000); // Hide after 3 seconds
+        }
+
+        /**
+         * Splits an email into username and domain.
+         */
+        function splitEmail(email) {
+            const parts = email.split('@');
+            if (parts.length !== 2 || !parts[0] || !parts[1]) {
+                return null;
+            }
+            return {
+                username: parts[0],
+                domain: parts[1]
+            };
+        }
+
+        /**
+         * Generates all possible case combinations for the username, up to MAX_OUTPUT.
+         * Uses bit manipulation to create 2^N combinations.
+         * @param {string} str - The username.
+         * @returns {string[]} An array of case-varied strings.
+         */
+        function generateAllCombinations(str) {
+            // Convert to lowercase as the base for all combinations
+            const lowerStr = str.toLowerCase(); 
+            const n = lowerStr.length;
+            
+            // Calculate total possible combinations (2^N)
+            const totalCombinations = Math.pow(2, n); 
+            
+            // Limit the loop to MAX_OUTPUT or the total combinations, whichever is smaller
+            const loopLimit = Math.min(MAX_OUTPUT, totalCombinations); 
+            
+            const combinations = new Set();
+            
+            // Iterate through the loop limit
+            for (let i = 0; i < loopLimit; i++) {
+                let tempUsername = '';
+                for (let j = 0; j < n; j++) {
+                    // Check if the j-th bit is set in i
+                    if ((i >> j) & 1) {
+                        // If bit is 1, use uppercase for this character
+                        tempUsername += lowerStr[j].toUpperCase();
+                    } else {
+                        // If bit is 0, use lowercase
+                        tempUsername += lowerStr[j];
+                    }
+                }
+                combinations.add(tempUsername);
+            }
+
+            return Array.from(combinations);
+        }
+
+        /**
+         * Main function to generate and display email combinations.
+         */
+        function generateEmails() {
+            const inputEmail = INPUT_FIELD.value.trim();
+            OUTPUT_FIELD.value = ''; // Clear previous output
+            COPY_BUTTON.disabled = true; // Disable copy button initially
+
+            if (!inputEmail) {
+                showMessage('Please enter an email address.', 'bg-red-500');
+                return;
+            }
+
+            const emailParts = splitEmail(inputEmail);
+
+            if (!emailParts) {
+                showMessage('Invalid email format. Please provide a valid email with "@".', 'bg-red-500');
+                return;
+            }
+
+            const { username, domain } = emailParts;
+
+            // Generate all possible case variations (up to 100)
+            const caseVariations = generateAllCombinations(username);
+            
+            const generatedEmailsSet = new Set();
+            
+            caseVariations.forEach(variation => {
+                generatedEmailsSet.add(`${variation}@${domain}`);
+            });
+
+            // IMPORTANT: Remove the exact input email from the generated set, as requested
+            generatedEmailsSet.delete(inputEmail);
+
+            const generatedEmails = Array.from(generatedEmailsSet);
+
+            if (generatedEmails.length === 0) {
+                 showMessage(`No unique variations could be generated.`, 'bg-red-500');
+                 return;
+            }
+
+            // Display results
+            OUTPUT_FIELD.value = generatedEmails.join('\n');
+            COPY_BUTTON.disabled = false;
+            
+            const totalPossible = Math.pow(2, username.length);
+
+            let message = `Total ${generatedEmails.length} new emails generated.`;
+
+            // If the total possible combinations exceed MAX_OUTPUT, show a warning
+            if (totalPossible > MAX_OUTPUT) {
+                 message += ` (Limited to first ${MAX_OUTPUT} combinations out of ${totalPossible} possible.)`;
+                 showMessage(message, 'bg-yellow-500');
+            } else {
+                showMessage(message, 'bg-green-500');
+            }
+        }
+
+        /**
+         * Copies the content of the output box to the clipboard.
+         */
+        function copyEmails() {
+            const textToCopy = OUTPUT_FIELD.value;
+            
+            if (!textToCopy) {
+                showMessage('No emails generated to copy.', 'bg-yellow-500');
+                return;
+            }
+
+            // Use the fallback method for copying text
+            try {
+                const textarea = document.createElement('textarea');
+                textarea.value = textToCopy;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+
+                showMessage('Generated emails successfully copied!', 'bg-green-500');
+
+            } catch (err) {
+                console.error('Failed to copy text: ', err);
+                showMessage('Failed to copy. Please copy manually.', 'bg-red-500');
+            }
+        }
+
+        // Initialize button state when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            if (OUTPUT_FIELD.value === '') {
+                COPY_BUTTON.disabled = true;
+            }
+        });
+    </script>
+
+</body>
+</html>
